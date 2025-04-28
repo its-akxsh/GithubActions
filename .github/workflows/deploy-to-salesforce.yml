@@ -1,0 +1,39 @@
+name: Deploy to Salesforce
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Salesforce CLI
+        run: |
+          npm install sfdx-cli --global
+
+      - name: Decode and save JWT key
+        run: |
+          echo "${{ secrets.SF_JWT_KEY }}" > server.key
+          chmod 600 server.key
+
+      - name: Authenticate to Salesforce
+        run: |
+          sfdx auth:jwt:grant \
+            --clientid ${{ secrets.SF_CONSUMER_KEY }} \
+            --jwtkeyfile server.key \
+            --username ${{ secrets.SF_USERNAME }} \
+            --setdefaultdevhubusername
+
+      - name: Deploy metadata to Salesforce
+        run: |
+          sfdx force:source:deploy -p force-app --targetusername ${{ secrets.SF_USERNAME }} --checkonly --testlevel RunLocalTests
+
+      - name: Run tests
+        run: |
+          sfdx force:apex:test:run --resultformat human --codecoverage --targetusername ${{ secrets.SF_USERNAME }} --wait 10
