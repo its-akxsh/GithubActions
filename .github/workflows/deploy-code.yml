@@ -46,5 +46,5 @@ jobs:
 
               run: |
                   echo "${{secrets.SERVER_KEY}}" > server.key
-                  sf org login jwt -f server.key -i ${{ secrets.CLIENT_ID }} -o ${{secrets.USERNAME}} -r ${{secrets.INSTANCE_URL}} -s
+                  sf org login jwt -f server.key -i ${{ secrets.CLIENT_ID }} -o ${{secrets.USERNAME}} -r ${{vars.INSTANCE_URL}} -s
                   sf project deploy start --source-dir changed-sources/force-app --test-level RunLocalTests
