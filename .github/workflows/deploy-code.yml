@@ -42,11 +42,11 @@ jobs:
                   sf sgd source delta --to "HEAD" --from "HEAD~1" --output changed-sources/ --generate-delta --source force-app/
                   echo "[INFO] Diff generated"
 
-            - name: 'Authenticate to the org'
+            # - name: 'Authenticate to the org'
 
-              run: |
-                  echo "${{secrets.SERVER_KEY}}" > server.key
-                  sf org login jwt -f server.key -i ${{ secrets.CLIENT_ID }} -o ${{secrets.USERNAME}} -r ${{vars.INSTANCE_URL}} -s
+            #   run: |
+            #       echo "${{secrets.SERVER_KEY}}" > server.key
+            #       sf org login jwt -f server.key -i ${{ secrets.CLIENT_ID }} -o ${{secrets.USERNAME}} -r ${{vars.INSTANCE_URL}} -s
 
             # - name: Detect changed test classes
             #   id: get-tests
@@ -74,7 +74,7 @@ jobs:
 
               run: |
                   echo "${{secrets.SERVER_KEY}}" > server.key
-                  sf org login jwt -f server.key -i ${{ secrets.CLIENT_ID }} -o ${{secrets.USERNAME}} -r ${{secrets.INSTANCE_URL}} -s
+                  sf org login jwt -f server.key -i ${{ secrets.CLIENT_ID }} -o ${{secrets.USERNAME}} -r ${{vars.INSTANCE_URL}} -s
                   sf project deploy start --source-dir changed-sources/force-app --test-level NoTestRun
 
 
