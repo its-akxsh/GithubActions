@@ -33,12 +33,12 @@ jobs:
       - name: Authenticate to Salesforce Org (JWT Flow)
         run: |
           echo ${{ secrets.SALESFORCE_CLIENT_ID }} > client_id.txt
-          echo ${{ secrets.SALESFORCE_PRIVATE_KEY }} > private_key.pem
+          echo ${{ secrets.SALESFORCE_PRIVATE_KEY }} > private_key.key
           echo ${{ secrets.SALESFORCE_USER_IDENTIFIER }} > user_identifier.txt
           echo ${{ secrets.SALESFORCE_API_URL }} > api_url.txt
           
           # Use JWT Flow to authenticate
-          sfdx force:auth:jwt:grant --clientid $(<client_id.txt) --privatekeyfile private_key.pem --username $(<user_identifier.txt) --instanceurl $(<api_url.txt) --setalias my-org
+          sfdx force:auth:jwt:grant --clientid $(<client_id.txt) --privatekeyfile private_key.key --username $(<user_identifier.txt) --instanceurl $(<api_url.txt) --setalias my-org
         env:
           SALESFORCE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
           SALESFORCE_PRIVATE_KEY: ${{ secrets.SERVER_KEY }}
