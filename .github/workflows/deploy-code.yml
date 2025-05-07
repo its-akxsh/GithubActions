@@ -1,84 +1,58 @@
-name: Deploy to testing org on push to main
+name: Deploy to Salesforce (PR to main)
 
 on:
-    push:
-        branches: [main]
-        # if something is changed in this path
-        paths: 
-            - 'force-app/**'
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened] # Triggers on PR creation, update, or re-open
 
 jobs:
-    Deploy-code-to-env:
-        runs-on: ubuntu-latest
-        environment: githubAction
-
-        steps:
-            - uses: actions/setup-node@v3
-
-              with:
-                node-version: '18'
-
-            - name: 'Checkout source code'
-
-              uses: actions/checkout@v3
-
-              with:
-                fetch-depth: '2'
-
-            - name: 'Install SFDX'
-
-              run: npm install @salesforce/cli --global
-
-            - name: 'Install sfdx git delta'
-
-              run: |
-                  echo Y | sfdx plugins:install sfdx-git-delta
-                  sfdx plugins
-            
-            - name: 'Create delta packages'
-
-              run: |
-                  mkdir changed-sources
-                  sf sgd source delta --to "HEAD" --from "HEAD~1" --output changed-sources/ --generate-delta --source force-app/
-                  echo "[INFO] Diff generated"
-
-            # - name: 'Authenticate to the org'
-
-            #   run: |
-            #       echo "${{secrets.SERVER_KEY}}" > server.key
-            #       sf org login jwt -f server.key -i ${{ secrets.CLIENT_ID }} -o ${{secrets.USERNAME}} -r ${{vars.INSTANCE_URL}} -s
-
-            # - name: Detect changed test classes
-            #   id: get-tests
-            #   run: |
-            #       TEST_CLASSES=$(sf project deploy preview --source-dir changed-sources/force-app --json | \
-            #       jq -r '.result.files[] | select(.filePath | test(".*Test.cls$")) | .filePath' | \
-            #       xargs -n 1 basename | sed 's/.cls$//')
+  deploy:
+    runs-on: ubuntu-latest
     
-            #       echo "Detected test classes: $TEST_CLASSES"
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v3
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'  # Specify the Node.js version you're using
 
-            #       if [ -z "$TEST_CLASSES" ]; then
-            #         echo "runtests=DummyTest" >> $GITHUB_OUTPUT
-            #       else
-            #         echo "runtests=$TEST_CLASSES" >> $GITHUB_OUTPUT
-            #       fi
+      - name: Install Salesforce CLI
+        run: |
+          wget https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
+          tar xJf sfdx-linux-amd64.tar.xz
+          ./sfdx/install
+          sudo ln -s $(pwd)/sfdx/bin/sfdx /usr/local/bin/sfdx
 
-            # - name: Deploy with only affected test classes
-            #   run: |
-            #       sf project deploy start \
-            #       --source-dir changed-sources/force-app \
-            #       --test-level RunSpecifiedTests \
-            #       --runtests ${{ steps.get-tests.outputs.runtests }}
+      - name: Authenticate to Salesforce Org (JWT Flow)
+        run: |
+          echo ${{ secrets.SALESFORCE_CLIENT_ID }} > client_id.txt
+          echo ${{ secrets.SALESFORCE_PRIVATE_KEY }} > private_key.pem
+          echo ${{ secrets.SALESFORCE_USER_IDENTIFIER }} > user_identifier.txt
+          echo ${{ secrets.SALESFORCE_API_URL }} > api_url.txt
+          
+          # Use JWT Flow to authenticate
+          sfdx force:auth:jwt:grant --clientid $(<client_id.txt) --privatekeyfile private_key.pem --username $(<user_identifier.txt) --instanceurl $(<api_url.txt) --setalias my-org
+        env:
+          SALESFORCE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          SALESFORCE_PRIVATE_KEY: ${{ secrets.SERVER_KEY }}
+          SALESFORCE_USER_IDENTIFIER: ${{ secrets.USERNAME }}
+          SALESFORCE_API_URL: ${{ vars.INSTANCE_URL }}
 
-            - name: 'Deploy to env with running all local tests'
+      - name: Retrieve the latest metadata from the org #(Optional: If you want to fetch before deployment)
+        run: sfdx force:source:retrieve -u my-org -m ApexClass,ApexTrigger,CustomObject
 
-              run: |
-                  echo "${{secrets.SERVER_KEY}}" > server.key
-                  sf org login jwt -f server.key -i ${{ secrets.CLIENT_ID }} -o ${{secrets.USERNAME}} -r ${{vars.INSTANCE_URL}} -s
-                  sf project deploy start --source-dir changed-sources/force-app 
-                  
-            # --test-level NoTestRun
+      - name: Deploy to Salesforce
+        run: |
+          sfdx force:source:deploy -p force-app/main/default --checkonly --testlevel RunLocalTests -u my-org --json --loglevel fatal
+        # Remove --checkonly for actual deployment
 
-
-
-            # sf project deploy start --source-dir changed-sources/force-app --test-level RunLocalTests
+      - name: Post Deployment - Notify Success (Optional)
+        if: success()
+        run: echo "Salesforce Deployment Succeeded!"
+      
+      - name: Post Deployment - Notify Failure (Optional)
+        if: failure()
+        run: echo "Salesforce Deployment Failed!"
