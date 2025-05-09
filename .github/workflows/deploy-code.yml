@@ -107,7 +107,7 @@ jobs:
             --jwt-key-file server.key \
             --username ${{ secrets.USERNAME }} \
             --instance-url ${{ vars.INSTANCE_URL }} \
-            --set-alias helloAction
+            --alias helloAction
           echo "sf auth jwt grant command executed."
 
       - name: List SFDX Orgs and Verify Alias
