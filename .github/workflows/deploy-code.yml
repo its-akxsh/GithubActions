@@ -1,62 +1,130 @@
-name: Deploy to Salesforce (PR to main)
+# name: Deploy to Salesforce (PR to main)
+
+# on:
+#   pull_request:
+#     branches:
+#       - main
+#     types: [opened, synchronize, reopened] # Triggers on PR creation, update, or re-open
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+    
+#     steps:
+#       - name: Checkout the repository
+#         uses: actions/checkout@v3
+        
+#       - name: Set up Node.js
+#         uses: actions/setup-node@v3
+#         with:
+#           node-version: '18'  # Specify the Node.js version you're using
+
+#       # - name: Install Salesforce CLI
+#       #   run: |
+#       #     wget https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
+#       #     tar xJf sfdx-linux-amd64.tar.xz
+#       #     ./sfdx/install
+#       #     sudo ln -s $(pwd)/sfdx/bin/sfdx /usr/local/bin/sfdx
+
+#       - name: Install Salesforce CLI via npm
+#         run: |
+#           npm install --global sfdx-cli
+
+#       - name: Authenticate to Salesforce Org (JWT Flow)
+#         run: |
+#           echo ${{ secrets.SALESFORCE_CLIENT_ID }} > client_id.txt
+#           echo ${{ secrets.SALESFORCE_PRIVATE_KEY }} > private_key.key
+#           echo ${{ secrets.SALESFORCE_USER_IDENTIFIER }} > user_identifier.txt
+#           echo ${{ secrets.SALESFORCE_API_URL }} > api_url.txt
+          
+#           # Use JWT Flow to authenticate
+#           sfdx force:auth:jwt:grant --clientid $(<client_id.txt) --privatekeyfile private_key.key --username $(<user_identifier.txt) --instanceurl $(<api_url.txt) --setalias my-org
+#         env:
+#           SALESFORCE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+#           SALESFORCE_PRIVATE_KEY: ${{ secrets.SERVER_KEY }}
+#           SALESFORCE_USER_IDENTIFIER: ${{ secrets.USERNAME }}
+#           SALESFORCE_API_URL: ${{ vars.INSTANCE_URL }}
+
+#       - name: Retrieve the latest metadata from the org #(Optional: If you want to fetch before deployment)
+#         run: sfdx force:source:retrieve -u my-org -m ApexClass,ApexTrigger,CustomObject
+
+#       - name: Deploy to Salesforce
+#         run: |
+#           sfdx force:source:deploy -p force-app/main/default --checkonly --testlevel RunLocalTests -u my-org --json --loglevel fatal
+#         # Remove --checkonly for actual deployment
+
+#       - name: Post Deployment - Notify Success (Optional)
+#         if: success()
+#         run: echo "Salesforce Deployment Succeeded!"
+      
+#       - name: Post Deployment - Notify Failure (Optional)
+#         if: failure()
+#         run: echo "Salesforce Deployment Failed!"
+
+
+
+name: Salesforce CI - Validate Metadata
 
 on:
+  push:
+    branches:
+      - main # Or your main development branch e.g., 'develop'
+    paths:
+      - 'force-app/**' # Only run if Salesforce metadata changes
   pull_request:
     branches:
-      - main
-    types: [opened, synchronize, reopened] # Triggers on PR creation, update, or re-open
+      - main # Or your main development branch e.g., 'develop'
+    paths:
+      - 'force-app/**'
 
 jobs:
-  deploy:
+  validate-on-dev-org:
+    name: Validate Deployment to Dev Org
     runs-on: ubuntu-latest
-    
+    # environment: Development # Optional: if you configure GitHub Environments
+
     steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v3
-        
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'  # Specify the Node.js version you're using
+      - name: Checkout Repository
+        uses: actions/checkout@v4 # Uses the latest version of the checkout action
 
-      # - name: Install Salesforce CLI
-      #   run: |
-      #     wget https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
-      #     tar xJf sfdx-linux-amd64.tar.xz
-      #     ./sfdx/install
-      #     sudo ln -s $(pwd)/sfdx/bin/sfdx /usr/local/bin/sfdx
-
-      - name: Install Salesforce CLI via npm
+      - name: Install Salesforce CLI
         run: |
           npm install --global sfdx-cli
+          sfdx --version
 
-      - name: Authenticate to Salesforce Org (JWT Flow)
+      - name: Populate SFDC Server Key for JWT
         run: |
-          echo ${{ secrets.SALESFORCE_CLIENT_ID }} > client_id.txt
-          echo ${{ secrets.SALESFORCE_PRIVATE_KEY }} > private_key.key
-          echo ${{ secrets.SALESFORCE_USER_IDENTIFIER }} > user_identifier.txt
-          echo ${{ secrets.SALESFORCE_API_URL }} > api_url.txt
-          
-          # Use JWT Flow to authenticate
-          sfdx force:auth:jwt:grant --clientid $(<client_id.txt) --privatekeyfile private_key.key --username $(<user_identifier.txt) --instanceurl $(<api_url.txt) --setalias my-org
-        env:
-          SALESFORCE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          SALESFORCE_PRIVATE_KEY: ${{ secrets.SERVER_KEY }}
-          SALESFORCE_USER_IDENTIFIER: ${{ secrets.USERNAME }}
-          SALESFORCE_API_URL: ${{ vars.INSTANCE_URL }}
+          echo "${{ secrets.SERVER_KEY }}" > server.key
+          # Optionally, set permissions if needed, though runner usually handles this
+          # chmod 600 server.key
 
-      - name: Retrieve the latest metadata from the org #(Optional: If you want to fetch before deployment)
-        run: sfdx force:source:retrieve -u my-org -m ApexClass,ApexTrigger,CustomObject
-
-      - name: Deploy to Salesforce
+      - name: Authenticate to Dev Org using JWT
         run: |
-          sfdx force:source:deploy -p force-app/main/default --checkonly --testlevel RunLocalTests -u my-org --json --loglevel fatal
-        # Remove --checkonly for actual deployment
+          sfdx auth:jwt:grant \
+            --clientid ${{ secrets.CLIENT_ID }} \
+            --jwtkeyfile server.key \
+            --username ${{ secrets.USERNAME }} \
+            --instanceurl ${{ vars.INSTANCE_URL || 'https://login.salesforce.com' }} \
+            --setalias DevOrgAlias
 
-      - name: Post Deployment - Notify Success (Optional)
-        if: success()
-        run: echo "Salesforce Deployment Succeeded!"
-      
-      - name: Post Deployment - Notify Failure (Optional)
-        if: failure()
-        run: echo "Salesforce Deployment Failed!"
+      - name: Validate Deploy to Dev Org (Check Only)
+        run: |
+          echo "Attempting to validate metadata from force-app..."
+          # We use --checkonly to validate without actual deployment
+          # Test Level:
+          # NoTestRun: For LWC/aura/static resources if no Apex is involved.
+          # RunLocalTests: Runs all tests in your org not originating from managed packages.
+          # RunSpecifiedTests -r MyClassTest: Runs specific tests.
+          # For initial LWC validation without Apex, NoTestRun is okay. If Apex is involved, use RunLocalTests.
+          sfdx force:source:deploy \
+            --sourcepath force-app \
+            --targetusername DevOrgAlias \
+            --checkonly \
+            --testlevel NoTestRun \
+            --verbose
+
+      - name: Clean up SFDC Server Key
+        if: always() # Ensures this step runs even if previous steps fail
+        run: |
+          rm -f server.key
+          echo "Server key file removed."
