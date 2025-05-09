@@ -89,8 +89,8 @@ jobs:
 
       - name: Install Salesforce CLI
         run: |
-          npm install --global sfdx-cli
-          sfdx --version
+          npm install @salesforce/cli --global
+          sf --version
 
      # ... (previous steps: Checkout, Install Salesforce CLI) ...
 
@@ -114,19 +114,18 @@ jobs:
         run: |
           set -e
           echo "Listing all SFDX/sf orgs to check if alias was registered:"
-          sf org list --all 
+          sf list org 
         # sf org list works similar to sfdx org list
         # You can also use: sfdx org list --all (as sf usually includes sfdx compatibility)
 
       - name: Validate Deploy to Dev Org (Check Only)
         run: |
           set -e
-          echo "Attempting to validate metadata from force-app..."
-          sfdx force:source:deploy \
-              --sourcepath force-app \
-              --targetusername helloAction \
-              --checkonly \
-              --testlevel NoTestRun \
+          echo "Attempting to validate metadata from force-app..." 
+          sf project deploy start \
+              --source-dir force-app \
+              --target-org helloAction \
+              --test-level NoTestRun \
               --verbose
 
       - name: Clean up SFDC Server Key
