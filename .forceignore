@@ -1,12 +1,67 @@
-# List files or directories below to ignore them when running force:source:push, force:source:pull, and force:source:status
-# More information: https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_exclude_source.htm
-#
+# Default Git related ignores
+.DS_Store
+*.zip
+*.lock
+*.tmp
+.DS_Store?
 
-package.xml
+# SFDX project files that should not be deployed
+.sfdx/
+.sf/
+.vscode/
+deploy-reports/
+unpackaged/
+manifest/
+coverage/
+node_modules/
+.localdevserver/
+.cci/
+.idea/
 
-# LWC configuration files
-**/jsconfig.json
-**/.eslintrc.json
+# Package specific files
+package.json
+package-lock.json
+yarn.lock
 
-# LWC Jest
-**/__tests__/**
+# Org-specific metadata or types that are often problematic or managed differently.
+# THIS IS KEY TO AVOIDING ERRORS LIKE 'ORGANISATION SOBJECT NOT SUPPORTED'.
+**/appMenus/AppSwitcher.appMenu
+**/appMenus/Salesforce1.appMenu
+**/profiles/*.* # Profiles are complex; consider partial profiles or Permission Sets. Start by ignoring all.
+# If you MUST deploy profiles, be very specific, e.g., !**/profiles/YourCustomProfile.profile-meta.xml
+# but ensure they don't contain references to 'Organization' or other non-deployable settings.
+**/permissionsets/*FieldPermissions/Object.Field.permissionset-meta.xml # Example if certain fields are org-specific
+**/layouts/*InstalledPackage*.layout-meta.xml # Layouts from managed packages
+
+# Explicitly ignore Organization settings if they are somehow getting included
+# This is very important for your original error!
+**/settings/Organization.settings-meta.xml
+Organization
+
+# Other common org-specific items (uncomment or add as needed)
+# User
+# Group
+# Role
+# Report
+# Dashboard
+# EmailTemplate
+# Letterhead
+# Document
+# StaticResource # Some static resources can be org-specific config
+# CustomSite
+# SiteDotCom
+# Network # Community/Experience Cloud
+# Community # Older community settings
+# AuthProvider
+# Certificate
+# ConnectedApp # Typically managed manually per org, except specific CI/CD ones if needed (rarely deployed)
+# ProfilePasswordPolicy
+# ProfileSessionSetting
+# SessionSettings
+# PasswordPolicies
+# FieldSet # Can sometimes be problematic if part of complex objects
+# ListView # Often user-specific
+
+# LWC specific build artifacts (if you use local LWC dev server or build tools)
+**/__utam__/
+**/lwc/generated/
