@@ -92,39 +92,45 @@ jobs:
           npm install --global sfdx-cli
           sfdx --version
 
+     # ... (previous steps: Checkout, Install Salesforce CLI) ...
+
       - name: Populate SFDC Server Key for JWT
         run: |
-          echo "${{ secrets.SERVER_KEY }}" > server.key
-          # Optionally, set permissions if needed, though runner usually handles this
-          # chmod 600 server.key
+          set -e
+          echo "${{ secrets.SFDC_SERVER_KEY }}" > server.key
 
-      - name: Authenticate to Dev Org using JWT
+      - name: Authenticate to Dev Org using JWT (sf command)
         run: |
-          sfdx auth:jwt:grant \
-            --clientid ${{ secrets.CLIENT_ID }} \
-            --jwtkeyfile server.key \
-            --username ${{ secrets.USERNAME }} \
-            --instanceurl ${{ vars.INSTANCE_URL || 'https://login.salesforce.com' }} \
-            --setalias helloAction
+          set -e
+          sf auth jwt grant \
+            --client-id ${{ secrets.SFDC_DEV_CLIENT_ID }} \
+            --jwt-key-file server.key \
+            --username ${{ secrets.SFDC_DEV_USERNAME }} \
+            --instance-url ${{ secrets.SFDC_DEV_INSTANCE_URL }} \
+            --set-alias helloAction
+          echo "sf auth jwt grant command executed."
+
+      - name: List SFDX Orgs and Verify Alias
+        run: |
+          set -e
+          echo "Listing all SFDX/sf orgs to check if alias was registered:"
+          sf org list --all 
+        # sf org list works similar to sfdx org list
+        # You can also use: sfdx org list --all (as sf usually includes sfdx compatibility)
 
       - name: Validate Deploy to Dev Org (Check Only)
         run: |
+          set -e
           echo "Attempting to validate metadata from force-app..."
-          # We use --checkonly to validate without actual deployment
-          # Test Level:
-          # NoTestRun: For LWC/aura/static resources if no Apex is involved.
-          # RunLocalTests: Runs all tests in your org not originating from managed packages.
-          # RunSpecifiedTests -r MyClassTest: Runs specific tests.
-          # For initial LWC validation without Apex, NoTestRun is okay. If Apex is involved, use RunLocalTests.
           sfdx force:source:deploy \
-            --sourcepath force-app \
-            --targetusername ${{ secrets.USERNAME }} \
-            --checkonly \
-            --testlevel NoTestRun \
-            --verbose
+              --sourcepath force-app \
+              --targetusername helloAction \
+              --checkonly \
+              --testlevel NoTestRun \
+              --verbose
 
       - name: Clean up SFDC Server Key
-        if: always() # Ensures this step runs even if previous steps fail
+        if: always()
         run: |
           rm -f server.key
           echo "Server key file removed."
