@@ -105,7 +105,7 @@ jobs:
             --jwtkeyfile server.key \
             --username ${{ secrets.USERNAME }} \
             --instanceurl ${{ vars.INSTANCE_URL || 'https://login.salesforce.com' }} \
-            --setalias DevOrgAlias
+            --setalias helloAction
 
       - name: Validate Deploy to Dev Org (Check Only)
         run: |
@@ -118,7 +118,7 @@ jobs:
           # For initial LWC validation without Apex, NoTestRun is okay. If Apex is involved, use RunLocalTests.
           sfdx force:source:deploy \
             --sourcepath force-app \
-            --targetusername DevOrgAlias \
+            --targetusername ${{ secrets.USERNAME }} \
             --checkonly \
             --testlevel NoTestRun \
             --verbose
