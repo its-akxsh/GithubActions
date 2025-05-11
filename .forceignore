@@ -65,3 +65,12 @@ Organization
 # LWC specific build artifacts (if you use local LWC dev server or build tools)
 **/__utam__/
 **/lwc/generated/
+
+package.xml
+
+# LWC configuration files
+**/jsconfig.json
+**/.eslintrc.json
+
+# LWC Jest
+**/__tests__/**
